@@ -1,3 +1,5 @@
+// custom response class to send response in a standard format
+
 class ApiResponse {
     constructor(statusCode, message="Success", data) {
         this.statusCode = statusCode;

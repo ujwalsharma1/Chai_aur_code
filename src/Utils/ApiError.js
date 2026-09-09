@@ -1,3 +1,5 @@
+// custom error class to handle errors in a standard format 
+
 class ApiError extends Error {
 
     constructor(
