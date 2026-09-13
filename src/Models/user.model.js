@@ -20,7 +20,7 @@ const userSchema = new Schema(
       lowercase: true,
       trim: true,
     },
-    fullname: {
+    fullName: {
       type: String,
       required: true,
       trim: true,
@@ -52,11 +52,10 @@ const userSchema = new Schema(
 );
 
 // type of middleware in mongoose to pre modify data before saving or making any other operation
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
   if (this.isModified("password")) {
     this.password = await bcrypt.hash(this.password, 10);
   }
-  next();
 });
 
 // as pass is saved encrypted in DB , user will enter in general pass , we are writing this
