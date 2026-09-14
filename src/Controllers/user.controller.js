@@ -4,6 +4,28 @@ import { User } from "../Models/user.model.js";
 import { uploadOnCloudinary } from "../Utils/cloudinary.js";
 import { ApiResponse } from "../Utils/ApiResponse.js";
 
+// method to generate access , refresh token
+
+const generateTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new ApiError(500, "Generate token error 1");
+    }
+
+    const accessToken = user.generateAccessToken(); // call methods defined in model of User
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken; // store refreshtoken in db in user.refreshtoken field
+    await user.save({ validateBeforeSave: false }); // dont validate on this save ..
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(500, "Generate token error 2");
+  }
+};
+
 const registerUser = asyncHandler(async (req, res) => {
   // fetch data from req.body
 
@@ -29,7 +51,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User already exists");
   }
   // store the files on local server
-  
+
   //const avatarLocalPath = req.files?.avatar[0]?.path;
   // const coverImageLocalPath = req.files?.coverImage[0]?.path;
   var avatarLocalPath;
@@ -91,14 +113,96 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 });
 
-const loginUser = asyncHandler( async(req,res) => {
+const loginUser = asyncHandler(async (req, res) => {
   // get data from req.body
-  // validate data from user 
-  // validate if user exists or not
-  // validate email and password
-  // generate access , refresh tokens 
-  // send cookie
-  // send it as response
-})
 
-export { registerUser , loginUser };
+  const { email, username, password } = req.body;
+
+  // validate data from user
+
+  if (!username && !email) {
+    throw new ApiError(400, "username or email required");
+  }
+
+  // validate if user exists or not
+
+  const checkUser = await User.findOne({
+    $or: [{ email }, { username }],
+  });
+
+  if (!checkUser) {
+    throw new ApiError(404, "User is not registered");
+  }
+
+  // validate email and password
+
+  const passCheck = await checkUser.isPasswordCorrect(password); // when you are accessing your own declared methods , you can't use User model of mongoDb , use your own user object
+
+  if (!passCheck) {
+    throw new ApiError(401, "Wrong Password");
+  }
+
+  // generate access , refresh tokens
+
+  const { accessToken, refreshToken } = await generateTokens(checkUser._id);
+
+  const loggedInUser = await User.findById(checkUser._id).select(
+    "-password -refreshToken"
+  ); // this is written because in previous checkUser object , we fetched every field including pass , tokens .. so to send as a response we called one more time with only req fields
+
+  // send cookie
+
+  const options = {
+    // this means that cookie can be modified only by server , not on frontend
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "User Logged In Successfully"
+      )
+    );
+  // send it as response
+});
+
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  const options = {
+    // this means that cookie can be modified only by server , not on frontend
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged Out"));
+
+  // remove tokens , cookies
+  // clear refreshToken field from USer model in db
+});
+
+export { registerUser, loginUser, logoutUser };
