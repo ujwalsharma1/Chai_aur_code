@@ -233,17 +233,17 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: true,
     };
 
-    const { newAccessToken, newRefreshToken } = generateTokens(user._id);
+    const { accessToken, refreshToken } = await generateTokens(user._id);
 
     return res
       .status(200)
-      .cookie("accessToken", newAccessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { newAccessToken, refreshToken: newRefreshToken },
-          "Access token refreshed"
+          "Access token refreshed",
+          { accessToken, refreshToken: refreshToken },
         )
       );
   } catch (error) {
@@ -257,7 +257,7 @@ const changeCurrentPassword = asyncHandler( async(req,res)=>{
   const user = await User.findById(req.user?._id) 
 
   const isPassCorrect = await user.isPasswordCorrect(oldPassword)
-
+  
   if(!isPassCorrect){
     throw new ApiError(400 , "Invalid Password");
   }
@@ -303,7 +303,7 @@ const updateAccountDetails = asyncHandler(async (req , res)=>{
 
   return res
   .status(200)
-  ,json(new ApiResponse(200 , user , "Account details updated successfully"))
+  .json(new ApiResponse(200 , user , "Account details updated successfully"))
 })
 
 const updateUserAvatar = asyncHandler( async(req,res)=> {
