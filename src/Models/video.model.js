@@ -8,7 +8,7 @@ const videoSchema = new Schema(
       required: true,
     },
     thumbnail: {
-      type: String,
+      type: String, // cloudinary url
       required: true,
     },
     title: {
@@ -28,12 +28,13 @@ const videoSchema = new Schema(
       default: 0,
     },
     isPublished: {
-      type: boolean,
+      type: Boolean,
       default: true,
     },
     owner: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true
     },
   },
   { timestamps: true }
