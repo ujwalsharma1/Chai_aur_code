@@ -30,10 +30,13 @@ import userRouter from "./Routes/user.route.js";
 import videoRouter from "./Routes/video.route.js";
 import subscriptionRouter from "./Routes/subscription.route.js";
 import playlistRouter from "./Routes/playlist.route.js";
+import tweetRouter from "./Routes/tweet.route.js";
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/videos" , videoRouter);
 app.use("/api/v1/subscriptions" , subscriptionRouter);
 app.use("/api/v1/playlists" , playlistRouter);
+app.use("/api/v1/tweets" , tweetRouter);
+
 
 export { app };
