@@ -8,7 +8,7 @@ import { Video } from "../Models/video.model.js";
 const addComment = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
-  const { content } = req.body;
+  const { content, parentCommentId } = req.body;
 
   if (!videoId) {
     throw new ApiError(400, "VideoId is required");
@@ -28,10 +28,25 @@ const addComment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Video not found");
   }
 
+  if (parentCommentId) {
+    if (!mongoose.Types.ObjectId.isValid(parentCommentId)) {
+      throw new ApiError(400, "parentComment id is invalid");
+    }
+    const checkIfExists = await Comment.findById(parentCommentId);
+
+    if (!checkIfExists) {
+      throw new ApiError(404, "Parent Comment not found");
+    }
+
+    if (checkIfExists.video.toString() !== videoId) {
+      throw new ApiError(400, "Invalid parent comment");
+    }
+  }
   const comment = await Comment.create({
     video: videoId,
     content: content.trim(),
     owner: req.user._id,
+    parentComment: parentCommentId || null,
   });
 
   return res
@@ -58,6 +73,10 @@ const deleteComment = asyncHandler(async (req, res) => {
   if (!commentdel) {
     throw new ApiError(404, "Comment not found or you are not authorized");
   }
+
+  await Comment.deleteMany({
+    parentComment: commentdel._id,
+  });
 
   return res
     .status(200)
@@ -118,9 +137,92 @@ const getVideoComments = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Video not found");
   }
 
-  const getComments = await Comment.find({
-    video: videoId,
-  }).lean().sort({ createdAt: -1 });
+  const getComments = await Comment.aggregate([
+    {
+      $match: {
+        video: new mongoose.Types.ObjectId(videoId),
+        parentComment: null,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "authorDetails",
+      },
+    },
+    {
+      $unwind: {
+        path: "$authorDetails",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "comments",
+        localField: "_id",
+        foreignField: "parentComment",
+        as: "replies",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "authorDetails",
+            },
+          },
+          {
+            $unwind: {
+              path: "$authorDetails",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              content: 1,
+              createdAt: 1,
+              authorDetails: {
+                _id: 1,
+                username: 1,
+                avatar: 1,
+              },
+            },
+          },
+          {
+            $sort: { createdAt: -1 },
+          },
+          {
+            $limit: 5,
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        replyCount: { $size: "$replies" },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        content: 1,
+        createdAt: 1,
+        authorDetails: {
+          _id: 1,
+          username: 1,
+          avatar: 1,
+        },
+        replyCount: 1,
+        replies: 1,
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
+    },
+  ]);
 
   if (getComments.length === 0) {
     return res
