@@ -33,6 +33,8 @@ import playlistRouter from "./Routes/playlist.route.js";
 import tweetRouter from "./Routes/tweet.route.js";
 import likeRouter from "./Routes/like.route.js";
 import commentRouter from "./Routes/comment.route.js";
+import dashboardRouter from "./Routes/dashboard.route.js";
+
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/videos", videoRouter);
@@ -41,4 +43,7 @@ app.use("/api/v1/playlists", playlistRouter);
 app.use("/api/v1/tweets", tweetRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/comments", commentRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
+
+
 export { app };
